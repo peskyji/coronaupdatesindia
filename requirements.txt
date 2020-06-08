@@ -1,5 +1,4 @@
 pydeck==0.3.1
-~atplotlib==3.1.2
 streamlit==0.60.0
 numpy==1.18.1
 plotly==4.6.0
