@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st 
-import pydeck as pdk
 import plotly.graph_objs as gobj
 import calendar
+
 
 @st.cache(persist=True)
 def load_data_global():
@@ -49,7 +49,7 @@ def plotBarFunc(df):
 	                    plot_bgcolor = '#FFEEFF'
 	                )
 
-	st.write(fig)
+	st.plotly_chart(fig, use_container_width=True)
 
 
 def plot_country_map(countries,continent,figure):
@@ -128,207 +128,325 @@ def plot_states(df , caseType):
 
 
 data_global = load_data_global()
-
-st.title("COVID-19 UPDATES AND INSIGHTS")
-st.markdown("Get latest updates on COVID-19 WorldWide")
-st.image("cv19s.jpg")
-
-# --------------------CONTINENTS-------------------------------------------------------
-st.title("Continents affected due to COVID-19")
-continent_grp = data_global.groupby("continentExp")
-figure = continent_grp[['cases','deaths']].sum()
-
-list_cont = ['All']
-list_cont.extend(sorted(figure.index.to_list()))
-list_cont.remove('Other')
-
-country=""
-status=""
-select = st.selectbox("Select Continent",list_cont)
-
-if select != 'All':
-	list_cntry = ['All']
-	list_cntry.extend(continent_grp.get_group(select).countriesAndTerritories.unique())
-
-	country = st.selectbox("Select Country",list_cntry)
-	
-	figure = data_global.groupby(['continentExp','countriesAndTerritories'])
-	
-	status = st.radio("See the count of",("Confirmed Cases","No. of Deaths"))
-
-	if country == 'All':
-		figure = figure[['cases','deaths']].sum().loc[(select), :]
-		plot_country_map(list_cntry[1:],select,figure)
-
-	else:
-		figure = figure[['cases','deaths']].sum().loc[(select,country)]
-		plot_country_map([country],select,figure)
-
-else:
-	plotBarFunc(figure);
-	
-
-if st.checkbox("See figures",False):
-	st.subheader("Confirmed and Deceased cases in Different Continents")
-	#figure = figure.sort_values(by='cases',ascending = False)
-	st.table(figure)
-
-
-#-------------------CONTINENTS-------------------------------------------
-
-#-----------------TOP AFFECTED COUNTRIES-------------------------------------
-
-st.title("Top Affected Countries In The World")
-status2 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='num')
-number = st.slider("no. of countries", 5, 20)
-country_grp = data_global.groupby("countriesAndTerritories")
-country_cases = country_grp.cases.sum().nlargest(number)
-country_deaths = country_grp.deaths.sum().nlargest(number)
-
-if(get_status2() == "Confirmed Cases"):
-	draw_scatter(country_cases)
-	if st.checkbox("See figures",False,2):
-		st.subheader("Top {} Affected Countries".format(number))
-		#figure = figure.sort_values(by='cases',ascending = False)
-		st.table(country_cases)
-else:
-	draw_scatter(country_deaths)
-	if st.checkbox("See figures",False,2):
-		st.subheader("Top {} Affected Countries".format(number))
-		#figure = figure.sort_values(by='cases',ascending = False)
-		st.table(country_deaths)
-
-#-----------------TOP AFFECTED------------------------------------------------------------------
-
-#-----------------INDIA SPECIFIC-------------------------------------------------------------
-
-ind_grp = country_grp.get_group("India")
-st.title("COVID-19 Outbreak in India")
-choice = st.radio("",("Daywise Analysis","Monthwise Analysis"), key="wise")
-
-if choice == "Daywise Analysis":
-	status3 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='Daywise')
-	
-	case_or_death, name, title = ind_grp['deaths'], 'deaths per day', 'COVID-19 Daywise deaths'
-	
-	if status3 == "Confirmed Cases":
-		case_or_death, name, title = ind_grp['cases'], 'new cases per day', 'COVID-19 Daywise Confirmed Cases'
-
-	fig = go.Figure(go.Scatter(x = ind_grp['dateRep'], y = case_or_death,name=name))
-
-	fig.update_layout(title=title,
-	                   plot_bgcolor='#FFEEFF', colorway = ['#000000'],
-	                   showlegend=True)
-
-	st.write(fig)
-
-else:
-	monthwise = ind_grp.groupby(['year','month'])
-	monthwise['cases'].sum()
-	mnt = monthwise['cases'].sum().loc[2020]
-	mnt.cumsum()
-	mnt_deaths = monthwise['deaths'].sum().loc[2020]
-
-	month=[calendar.month_name[x] for x in mnt.index]
-
-	fig = go.Figure(data=[
-	    go.Bar(name='Cases', x=month, y=mnt.cumsum()),
-	    go.Bar(name='Deaths', x=month, y=mnt_deaths.cumsum())
-	])
-	# Change the bar mode
-	fig.update_layout(title = 'Monthly Analysis of COVID-19 India for the year 2020',
-	                  barmode='group' ,
-	                  plot_bgcolor = '#FFEEFF',
-	                  colorway = ['BLUE' , 'GREEN']
-	                 )
-	st.write(fig)
-
-#-------------INDIA SPECIFIC-----------------------------------------------------------------------------
-
-
-#------------STATE WISE----------------------------------------------------------------------------------
-
-web_table_list = pd.read_html("https://www.mygov.in/covid-19")
-st.title("Indian States/UT's vs COVID-19")
-
 allStatesData = load_data_india()
+country_grp = data_global.groupby("countriesAndTerritories")
+#--------------- CSS properties---------------------------------------------------------------------
 
-filter1 = allStatesData.Confirmed != 0
-web_df = allStatesData[filter1]
+st.markdown('''
+			<style>
+				body {background-color: #dce8f3;}
+				h2 {color: green;}
+				h4 {color: purple;}
+				p {color: blue;}
+				.blk{color: black;}
+				.wht{color: white;}
+				.note {color: red;font-size: 22px;font-weight: bold;}
+				.active {background-color: #005c25;color: white;}
+				.recover {background-color: #5aab38;color: white;}
+				.outer {display: flex;flex-direction: row;flex-wrap: wrap;}
+				
+				.outer .confirm {background-color: #D3212D;width: 40%;margin: 10px;
+  							text-align: center;line-height: 50px;font-size: 30px;border-radius: 30px;}
 
-st.header("Top Most Affected State/UT")
+  				.outer .death {background-color: #582801;width: 40%;margin: 10px;
+  							text-align: center;line-height: 50px;font-size: 30px;border-radius: 30px;}
 
-status4 = st.radio("See the count of",("Confirmed Cases", "Active Cases", "Recovered Cases", "No. of Deaths"),key='statewise')
+  				.outer .active {background-color: #002c57;width: 40%;margin: 10px;
+  							text-align: center;line-height: 50px;font-size: 30px;border-radius: 30px;}
 
-num2 = st.slider("", 10, len(web_df),key="states")
+  				.outer .recover {background-color: #005c25;width: 40%;margin: 10px;
+  							text-align: center;line-height: 50px;font-size: 30px;border-radius: 30px;}
+			</style>
 
-if get_status4() == "Confirmed Cases":
-	temp_df = web_df.sort_values(by='Confirmed' , ascending = False)
-	plot_states(temp_df.iloc[0:num2],'c')
+			''', unsafe_allow_html=True)
 
-elif get_status4() == "No. of Deaths":
-	temp_df = web_df.sort_values(by='Deceased' , ascending = False)
-	plot_states(temp_df.iloc[0:num2],'d')
+#---------------End of Css properties-------------------------------------------------------------------
 
-elif get_status4() == "Active Cases":
-	temp_df = web_df.sort_values(by='Active' , ascending = False)
-	plot_states(temp_df.iloc[0:num2],'a')
+#-----------------main body heading-------------------------------------
+st.title("COVID-19 UPDATES AND INSIGHTS")
+st.subheader("Get latest updates on COVID-19 WorldWide")
+#image = Image.open('cv.png')
+st.image("cv.png", width=620)
 
-else:
-	temp_df = web_df.sort_values(by='Recovered' , ascending = False)
-	plot_states(temp_df.iloc[0:num2],'r')
+#-----------end of main body-------------------------------------------
 
-if st.checkbox("See figures",False, key="statewise"):
-	st.subheader("Statewise Data")
-	#figure = figure.sort_values(by='cases',ascending = False)
-	st.table(web_df)
+#-----------------SIDE BAR ------------------------------------------------------------------------
 
+st.sidebar.title("COVID-19 ANALYSIS")
+check1, check2 = False, False
+selection = st.sidebar.radio("", ('WORLD', 'INDIA'))
 
-#************* CORONA FREE STATE/UT*************************************************
+with st.spinner(f"{selection} ANALYSIS ..."):
+	if selection == 'WORLD':
+		st.title("COVID-19 Global Dashboard")
+		confirm = data_global.cases.sum()
+		death = data_global.deaths.sum()
 
-st.title("COVID-19 Free State/UT in India")
-st.subheader("List of all those State/UT where there is no active case at present.")
+		div_box = ''' <br>
+					<div class='outer'>
+						<div class="confirm">
+							<h1 class="wht">{}</h1>
+							<p class="wht">Confirmed Cases</p>
+						</div>
+						<div class="death">
+							<h1 class="wht">{}</h1>
+							<p class="wht">Deacesed Cases</p>
+						</div>	
+					</div>
+					<br>
+			 '''.format(confirm, death)
 
-filter2 = allStatesData.Active == 0
-free_states = allStatesData[filter2]
-free_states.sort_values(by ='Confirmed' , ascending = False , inplace = True)
+		st.markdown(div_box, unsafe_allow_html = True)
 
-fig = go.Figure()
-fig.add_trace(go.Bar(
-    x=free_states.States,
-    y=free_states.Confirmed,
-    name='Confirmed',
-    marker_color='RED'
-))
-fig.add_trace(go.Bar(
-    x=free_states.States,
-    y=free_states.Recovered,
-    name='Recovered',
-    marker_color='GREEN'
-))
-fig.add_trace(go.Bar(
-    x=free_states.States,
-    y=free_states.Deceased,
-    name='Deceased',
-    marker_color='BLUE'
-))
+		st.sidebar.markdown("### Categories")
 
-	# Here we modify the tickangle of the xaxis, resulting in rotated labels.
-fig.update_layout(
-                    barmode='group',
-                    xaxis_tickangle=-45,
-                    title = "Corona Free States/UT's",
-                    plot_bgcolor = '#FFEEFF'
-                )
-st.write(fig)
+		options = st.sidebar.selectbox("",("Continents Affected", "Top Most Affected Countries"), key="opt")
+		
+		if options == "Continents Affected":
+			continent_grp = data_global.groupby("continentExp")
+			figure = continent_grp[['cases','deaths']].sum()
 
-if st.checkbox("See figures",False, key="free_states"):
-	st.subheader("COVID-19 Free State/UT")
-	if len(free_states) > 0:
-		st.table(free_states.set_index('States'))
+			list_cont = ['All']
+			list_cont.extend(sorted(figure.index.to_list()))
+			list_cont.remove('Other')
+
+			country=""
+			status=""
+			select = st.sidebar.selectbox("Select Continent",list_cont)
+
+			if select != 'All':
+				list_cntry = ['All']
+				list_cntry.extend(continent_grp.get_group(select).countriesAndTerritories.unique())
+
+				country = st.sidebar.selectbox("Select Country",list_cntry)
+				
+				figure = data_global.groupby(['continentExp','countriesAndTerritories'])
+				
+				status = st.radio("See the count of",("Confirmed Cases","No. of Deaths"))
+
+				if country == 'All':
+					figure = figure[['cases','deaths']].sum().loc[(select), :]
+					plot_country_map(list_cntry[1:],select,figure)
+
+				else:
+					figure = figure[['cases','deaths']].sum().loc[(select,country)]
+					plot_country_map([country],select,figure)
+
+			else:
+				plotBarFunc(figure);
+
+			if st.checkbox("See figures",False):
+				st.subheader("Confirmed and Deceased cases in Different Continents")
+				st.table(figure)
+
+		if options == "Top Most Affected Countries":
+			st.title("Top Affected Countries In The World")
+			status2 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='num')
+			number = st.sidebar.slider("no. of countries", 10, 20)
+			country_cases = country_grp.cases.sum().nlargest(number)
+			country_deaths = country_grp.deaths.sum().nlargest(number)
+
+			if(get_status2() == "Confirmed Cases"):
+				draw_scatter(country_cases)
+				if st.checkbox("See figures",False,key='top_fig'):
+					st.subheader("Top {} Affected Countries".format(number))
+					st.table(country_cases)
+			else:
+				draw_scatter(country_deaths)
+				if st.checkbox("See figures",False,2):
+					st.subheader("Top {} Affected Countries".format(number))
+					st.table(country_deaths)
 	else:
-		st.markdown("Sorry, At Present None of the States/UT's are unaffected.")
 
-	#************************************************************************************
+		st.title("COVID-19 India Dashboard")
+		confirm = allStatesData.Confirmed.sum()
+		death = allStatesData.Deceased.sum()
+		active = allStatesData.Active.sum()
+		recover = allStatesData.Recovered.sum()
 
-#-------------------------STATEWISE--------------------------------------------------------------------
+		div_box = ''' <br>
+					<div class='outer'>
+						<div class="confirm">
+							<h1 class="wht">{}</h1>
+							<p class="wht">Confirmed Cases</p>
+						</div>
+						<div class="active">
+							<h1 class="wht">{}</h1>
+							<p class="wht">Active Cases</p>
+						</div>
+						<div class="recover">
+							<h1 class="wht">{}</h1>
+							<p class="wht">Recovered Cases</p>
+						</div>
+						<div class="death">
+							<h1 class="wht">{}</h1>
+							<p class="wht">Deacesed Cases</p>
+						</div>	
+					</div>
+
+			 '''.format(confirm, active, recover, death)
+
+		st.markdown(div_box, unsafe_allow_html = True)
+		ind_grp = country_grp.get_group("India")
+		st.title("COVID-19 Outbreak in India")
+		choice = st.sidebar.radio("Categories",("Daywise Analysis","Monthwise Analysis","State/UT-Wise"), key="wise")
+
+		if choice == "Daywise Analysis":
+			status3 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='Daywise')
+			
+			case_or_death, name, title = ind_grp['deaths'], 'deaths per day', 'COVID-19 Daywise deaths'
+			
+			if status3 == "Confirmed Cases":
+				case_or_death, name, title = ind_grp['cases'], 'new cases per day', 'COVID-19 Daywise Confirmed Cases'
+
+			fig = go.Figure(go.Scatter(x = ind_grp['dateRep'], y = case_or_death,name=name))
+
+			fig.update_layout(title=title,
+			                   plot_bgcolor='#FFEEFF', colorway = ['#000000'],
+			                   showlegend=True)
+
+			st.write(fig)
+
+		elif choice == "Monthwise":
+			monthwise = ind_grp.groupby(['year','month'])
+			monthwise['cases'].sum()
+			mnt = monthwise['cases'].sum().loc[2020]
+			mnt.cumsum()
+			mnt_deaths = monthwise['deaths'].sum().loc[2020]
+
+			month=[calendar.month_name[x] for x in mnt.index]
+
+			fig = go.Figure(data=[
+			    go.Bar(name='Cases', x=month, y=mnt.cumsum()),
+			    go.Bar(name='Deaths', x=month, y=mnt_deaths.cumsum())
+			])
+			# Change the bar mode
+			fig.update_layout(title = 'Monthly Analysis of COVID-19 India for the year 2020',
+			                  barmode='group' ,
+			                  plot_bgcolor = '#FFEEFF',
+			                  colorway = ['BLUE' , 'GREEN']
+			                 )
+			st.write(fig)
+
+		else:
+			st.title("Indian States/UT's vs COVID-19")
+
+			filter1 = allStatesData.Confirmed != 0
+			web_df = allStatesData[filter1]
+
+			st.header("Top Most Affected State/UT")
+
+			status4 = st.radio("See the count of",("Confirmed Cases", "Active Cases", "Recovered Cases", "No. of Deaths"),key='statewise')
+
+			num2 = st.slider("", 10, len(web_df),key="states")
+
+			if get_status4() == "Confirmed Cases":
+				temp_df = web_df.sort_values(by='Confirmed' , ascending = False)
+				plot_states(temp_df.iloc[0:num2],'c')
+
+			elif get_status4() == "No. of Deaths":
+				temp_df = web_df.sort_values(by='Deceased' , ascending = False)
+				plot_states(temp_df.iloc[0:num2],'d')
+
+			elif get_status4() == "Active Cases":
+				temp_df = web_df.sort_values(by='Active' , ascending = False)
+				plot_states(temp_df.iloc[0:num2],'a')
+
+			else:
+				temp_df = web_df.sort_values(by='Recovered' , ascending = False)
+				plot_states(temp_df.iloc[0:num2],'r')
+
+		if st.checkbox("See figures",False, key="statewise"):
+			st.subheader("Statewise Data")
+			st.table(web_df)
+
+		st.title("COVID-19 Free State/UT in India")
+		st.subheader("List of all those State/UT where there is no active case at present.")
+
+		filter2 = allStatesData.Active == 0
+		free_states = allStatesData[filter2]
+		free_states.sort_values(by ='Confirmed' , ascending = False , inplace = True)
+
+		fig = go.Figure()
+		fig.add_trace(go.Bar(
+		    x=free_states.States,
+		    y=free_states.Confirmed,
+		    name='Confirmed',
+		    marker_color='RED'
+		))
+		fig.add_trace(go.Bar(
+		    x=free_states.States,
+		    y=free_states.Recovered,
+		    name='Recovered',
+		    marker_color='GREEN'
+		))
+		fig.add_trace(go.Bar(
+		    x=free_states.States,
+		    y=free_states.Deceased,
+		    name='Deceased',
+		    marker_color='BLUE'
+		))
+
+			# Here we modify the tickangle of the xaxis, resulting in rotated labels.
+		fig.update_layout(
+		                    barmode='group',
+		                    xaxis_tickangle=-45,
+		                    title = "Corona Free States/UT's",
+		                    plot_bgcolor = '#FFEEFF'
+		                )
+		st.write(fig)
+
+		if st.checkbox("See figures",False, key="free_states"):
+			st.subheader("COVID-19 Free State/UT")
+			if len(free_states) > 0:
+				st.table(free_states.set_index('States'))
+			else:
+				st.markdown("Sorry, At Present None of the States/UT's are unaffected.")
+
+
+note1 = '''<h2 class="note">NOTE \u26A0</h2> '''
+st.sidebar.markdown(note1, unsafe_allow_html = True)
+st.sidebar.info(
+    ''' Click on the expand icon 
+    	(on the top-right cornor of a Chart/Map)
+    	for fullscreen view ''')
+
+note2 = '''<h2>ABOUT </h2> '''
+st.sidebar.markdown(note2, unsafe_allow_html = True)
+st.sidebar.info(
+    ''' 
+    	This app is developed by Shailesh Bisht.
+    	#### You can find me at
+    	- [LinkedIn](https://www.linkedin.com/in/shailesh-bisht-b42a73184)
+    	- mail id - peskyji@gmail.com
+    	#### See some of my other works at
+    	- [GitHub](https://www.github.com/peskyji)
+    	- [GitLab](https://www.gitlab.com/peskyji)
+     ''')
+
+note3 = '''<h2> SOURCES </h2> '''
+st.sidebar.markdown(note3, unsafe_allow_html = True)
+st.sidebar.info(
+    ''' 
+    	COVID-19 data shown in this app is updated daily. 
+
+    	It is taken from the following sources
+    	#### WORLD
+    	- [ECDC](https://opendata.ecdc.europa.eu/covid19/casedistribution)
+    	#### INDIA
+    	- [GOVT SITE](https://www.mygov.in/covid-19)
+     ''')
+
+note4 = '''<h2> CONTRIBUTE </h2> '''
+st.sidebar.markdown(note4, unsafe_allow_html = True)
+st.sidebar.info(
+    ''' 
+    	This an open source project and you are very welcome to 
+    	contribute your awesome comments, questions, pull request
+    	to make this app better.
+
+    	- You can find the [Source Code](https://github.com/peskyji/coronaupdatesindia) 
+    	here.
+     ''')
+
+#---------------END OF SIDE BAR-------------------------------------------------------------------
