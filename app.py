@@ -16,7 +16,8 @@ def load_data_global():
 	URL = "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv"
 	df = pd.read_csv(URL)
 	df['dateRep'] = pd.to_datetime(df['dateRep'] , format = "%d/%m/%Y")
-	#df.drop(columns=['day','month','year'],inplace=True)
+	filt1 = df.continentExp == 'Other'
+	df = df.drop(index = df[filt1].index)
 	return df
 
 @st.cache(persist=True)
@@ -27,6 +28,7 @@ def load_data_india():
 	return df
 
 def plotBarFunc(df):
+	df = df.sort_values(by="cases", ascending=False)
 	fig = go.Figure()
 	fig.add_trace(go.Bar(
 	    x=df.index,
@@ -127,11 +129,44 @@ def plot_states(df , caseType):
 	st.write(fig)
 
 
+def plot_world_data(df):
+	fig = go.Figure(data=go.Choropleth(
+    locations = df.countryterritoryCode,
+    z = df.cases,
+    text = df.index,
+    colorscale = 'brbg',
+    autocolorscale=False,
+    reversescale=True,
+    marker_line_color='darkgray',
+    marker_line_width=0.5,
+    colorbar_title = 'population affected',
+	))
+
+	fig.update_layout(
+    title_text='Countries Affected by COVID-19',
+    geo=dict(
+        showframe=False,
+        showcoastlines=False,
+        projection_type='equirectangular'
+    ),
+    annotations = [dict(
+        x=0.55,
+        y=0.1,
+        xref='paper',
+        yref='paper',
+        text="",
+        showarrow = False
+    )]
+	)
+
+	st.write(fig)
+
+
 data_global = load_data_global()
 allStatesData = load_data_india()
 country_grp = data_global.groupby("countriesAndTerritories")
-#--------------- CSS properties---------------------------------------------------------------------
 
+#--------------- CSS properties---------------------------------------------------------------------
 st.markdown('''
 			<style>
 				body {background-color: #dce8f3;}
@@ -162,13 +197,11 @@ st.markdown('''
 
 #---------------End of Css properties-------------------------------------------------------------------
 
-#-----------------main body heading-------------------------------------
+	#-----------------main body heading-------------------------------------
 st.title("COVID-19 UPDATES AND INSIGHTS")
 st.subheader("Get latest updates on COVID-19 WorldWide")
-#image = Image.open('cv.png')
 st.image("cv.png", width=620)
-
-#-----------end of main body-------------------------------------------
+	#-----------end of main body-------------------------------------------
 
 #-----------------SIDE BAR ------------------------------------------------------------------------
 
@@ -177,6 +210,8 @@ check1, check2 = False, False
 selection = st.sidebar.radio("", ('WORLD', 'INDIA'))
 
 with st.spinner(f"{selection} ANALYSIS ..."):
+
+	#----------------------World Analysis-----------------------------------------------------
 	if selection == 'WORLD':
 		st.title("COVID-19 Global Dashboard")
 		confirm = data_global.cases.sum()
@@ -185,11 +220,11 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 		div_box = ''' <br>
 					<div class='outer'>
 						<div class="confirm">
-							<h1 class="wht">{}</h1>
+							<h1 class="wht">{:,}</h1>
 							<p class="wht">Confirmed Cases</p>
 						</div>
 						<div class="death">
-							<h1 class="wht">{}</h1>
+							<h1 class="wht">{:,}</h1>
 							<p class="wht">Deacesed Cases</p>
 						</div>	
 					</div>
@@ -200,16 +235,27 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 
 		st.sidebar.markdown("### Categories")
 
-		options = st.sidebar.selectbox("",("Continents Affected", "Top Most Affected Countries"), key="opt")
+		options = st.sidebar.selectbox("",("--Select--","Continents Affected", "Top Most Affected Countries"), key="opt")
 		
-		if options == "Continents Affected":
+		#-----------------Continent wise------------------------------------------------------------
+		if options == "--Select--":
+			msg = '''<div class='outer'> <div style="font-size: 3em;text-align:center">👈</div> <div style="text-align:center;width:70%"><h3>Please visit the sidebar and interact with
+				 Different Categories to see Detailed Analysis.</h3></div></div> <br>
+				 '''
+			st.markdown(msg, unsafe_allow_html=True)
+
+			if st.checkbox("See the Map", False, key='world_map'):
+				df = country_grp[['cases','deaths']].sum()
+				df = df.merge(country_grp.first().countryterritoryCode , left_index=True, right_index=True)
+				plot_world_data(df)
+				
+		elif options == "Continents Affected":
 			continent_grp = data_global.groupby("continentExp")
 			figure = continent_grp[['cases','deaths']].sum()
 
 			list_cont = ['All']
 			list_cont.extend(sorted(figure.index.to_list()))
-			list_cont.remove('Other')
-
+			
 			country=""
 			status=""
 			select = st.sidebar.selectbox("Select Continent",list_cont)
@@ -238,7 +284,9 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 			if st.checkbox("See figures",False):
 				st.subheader("Confirmed and Deceased cases in Different Continents")
 				st.table(figure)
-
+		#--------------------------------------------------------------------------------------------
+		
+		#-----------------Top Affected Countries------------------------------------------------------
 		if options == "Top Most Affected Countries":
 			st.title("Top Affected Countries In The World")
 			status2 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='num')
@@ -256,8 +304,10 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 				if st.checkbox("See figures",False,2):
 					st.subheader("Top {} Affected Countries".format(number))
 					st.table(country_deaths)
+			#---------------------------------------------------------------------------------
+	
+	#-----------------------India Analysis-----------------------------------------------------
 	else:
-
 		st.title("COVID-19 India Dashboard")
 		confirm = allStatesData.Confirmed.sum()
 		death = allStatesData.Deceased.sum()
@@ -267,19 +317,19 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 		div_box = ''' <br>
 					<div class='outer'>
 						<div class="confirm">
-							<h1 class="wht">{}</h1>
+							<h1 class="wht">{:,}</h1>
 							<p class="wht">Confirmed Cases</p>
 						</div>
 						<div class="active">
-							<h1 class="wht">{}</h1>
+							<h1 class="wht">{:,}</h1>
 							<p class="wht">Active Cases</p>
 						</div>
 						<div class="recover">
-							<h1 class="wht">{}</h1>
+							<h1 class="wht">{:,}</h1>
 							<p class="wht">Recovered Cases</p>
 						</div>
 						<div class="death">
-							<h1 class="wht">{}</h1>
+							<h1 class="wht">{:,}</h1>
 							<p class="wht">Deacesed Cases</p>
 						</div>	
 					</div>
@@ -303,11 +353,11 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 
 			fig.update_layout(title=title,
 			                   plot_bgcolor='#FFEEFF', colorway = ['#000000'],
-			                   showlegend=True)
+			                   showlegend=True,)
 
 			st.write(fig)
 
-		elif choice == "Monthwise":
+		elif choice == "Monthwise Analysis":
 			monthwise = ind_grp.groupby(['year','month'])
 			monthwise['cases'].sum()
 			mnt = monthwise['cases'].sum().loc[2020]
@@ -329,12 +379,10 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 			st.write(fig)
 
 		else:
-			st.title("Indian States/UT's vs COVID-19")
+			st.subheader("Indian States/UT's vs COVID-19")
 
 			filter1 = allStatesData.Confirmed != 0
 			web_df = allStatesData[filter1]
-
-			st.header("Top Most Affected State/UT")
 
 			status4 = st.radio("See the count of",("Confirmed Cases", "Active Cases", "Recovered Cases", "No. of Deaths"),key='statewise')
 
@@ -356,60 +404,61 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 				temp_df = web_df.sort_values(by='Recovered' , ascending = False)
 				plot_states(temp_df.iloc[0:num2],'r')
 
-		if st.checkbox("See figures",False, key="statewise"):
-			st.subheader("Statewise Data")
-			st.table(web_df)
+			if st.checkbox("See figures",False, key="statewise"):
+				st.subheader("Statewise Data")
+				st.table(web_df)
 
-		st.title("COVID-19 Free State/UT in India")
-		st.subheader("List of all those State/UT where there is no active case at present.")
+			if st.sidebar.checkbox("COVID-19 Free State/UT in India", False, key='freeee'):
+				st.title("COVID-19 Free State/UT in India")
+				st.subheader("List of all those State/UT where there is no active case at present.")
 
-		filter2 = allStatesData.Active == 0
-		free_states = allStatesData[filter2]
-		free_states.sort_values(by ='Confirmed' , ascending = False , inplace = True)
+				filter2 = allStatesData.Active == 0
+				free_states = allStatesData[filter2]
+				free_states.sort_values(by ='Confirmed' , ascending = False , inplace = True)
 
-		fig = go.Figure()
-		fig.add_trace(go.Bar(
-		    x=free_states.States,
-		    y=free_states.Confirmed,
-		    name='Confirmed',
-		    marker_color='RED'
-		))
-		fig.add_trace(go.Bar(
-		    x=free_states.States,
-		    y=free_states.Recovered,
-		    name='Recovered',
-		    marker_color='GREEN'
-		))
-		fig.add_trace(go.Bar(
-		    x=free_states.States,
-		    y=free_states.Deceased,
-		    name='Deceased',
-		    marker_color='BLUE'
-		))
+				fig = go.Figure()
+				fig.add_trace(go.Bar(
+				    x=free_states.States,
+				    y=free_states.Confirmed,
+				    name='Confirmed',
+				    marker_color='RED'
+				))
+				fig.add_trace(go.Bar(
+				    x=free_states.States,
+				    y=free_states.Recovered,
+				    name='Recovered',
+				    marker_color='GREEN'
+				))
+				fig.add_trace(go.Bar(
+				    x=free_states.States,
+				    y=free_states.Deceased,
+				    name='Deceased',
+				    marker_color='BLUE'
+				))
 
-			# Here we modify the tickangle of the xaxis, resulting in rotated labels.
-		fig.update_layout(
-		                    barmode='group',
-		                    xaxis_tickangle=-45,
-		                    title = "Corona Free States/UT's",
-		                    plot_bgcolor = '#FFEEFF'
-		                )
-		st.write(fig)
+					# Here we modify the tickangle of the xaxis, resulting in rotated labels.
+				fig.update_layout(
+				                    barmode='group',
+				                    xaxis_tickangle=-45,
+				                    title = "Corona Free States/UT's",
+				                    plot_bgcolor = '#FFEEFF'
+				                )
+				st.write(fig)
 
-		if st.checkbox("See figures",False, key="free_states"):
-			st.subheader("COVID-19 Free State/UT")
-			if len(free_states) > 0:
-				st.table(free_states.set_index('States'))
-			else:
-				st.markdown("Sorry, At Present None of the States/UT's are unaffected.")
+				if st.checkbox("See figures",False, key="free_states"):
+					st.subheader("COVID-19 Free State/UT")
+					if len(free_states) > 0:
+						st.table(free_states.set_index('States'))
+					else:
+						st.markdown("Sorry, At Present None of the States/UT's are unaffected.")
 
-
-note1 = '''<h2 class="note">NOTE \u26A0</h2> '''
+		
+note1 = '''<h2 class="note">NOTE <span style="font-size: 1.5em;">ℹ</span></h2> '''
 st.sidebar.markdown(note1, unsafe_allow_html = True)
 st.sidebar.info(
-    ''' Click on the expand icon 
-    	(on the top-right cornor of a Chart/Map)
-    	for fullscreen view ''')
+    ''' Click on the expand icon
+    	for fullscreen view. The icon will appear 
+    	as you hover over the Chart/Map ''')
 
 note2 = '''<h2>ABOUT </h2> '''
 st.sidebar.markdown(note2, unsafe_allow_html = True)
