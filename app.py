@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st 
 import plotly.graph_objs as gobj
 import calendar
-
+import webbrowser as wb
 
 @st.cache(persist=True)
 def load_data_global():
@@ -233,7 +233,7 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 
 		st.markdown(div_box, unsafe_allow_html = True)
 
-		st.sidebar.markdown("### Categories")
+		st.sidebar.markdown("## CATEGORIES")
 
 		options = st.sidebar.selectbox("",("--Select--","Continents Affected", "Top Most Affected Countries"), key="opt")
 		
@@ -339,7 +339,8 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 		st.markdown(div_box, unsafe_allow_html = True)
 		ind_grp = country_grp.get_group("India")
 		st.title("COVID-19 Outbreak in India")
-		choice = st.sidebar.radio("Categories",("Daywise Analysis","Monthwise Analysis","State/UT-Wise"), key="wise")
+		st.sidebar.markdown("## CATEGORIES")
+		choice = st.sidebar.radio("",("Daywise Analysis","Monthwise Analysis","State/UT-Wise"), key="wise")
 
 		if choice == "Daywise Analysis":
 			status3 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='Daywise')
@@ -457,8 +458,8 @@ note1 = '''<h2 class="note">NOTE <span style="font-size: 1.5em;">ℹ</span></h2>
 st.sidebar.markdown(note1, unsafe_allow_html = True)
 st.sidebar.info(
     ''' Click on the expand icon
-    	for fullscreen view. The icon will appear 
-    	as you hover over the Chart/Map ''')
+    	for fullscreen view. The icon will appear
+    	on the top-right corner as you hover over the Chart/Map ''')
 
 note2 = '''<h2>ABOUT </h2> '''
 st.sidebar.markdown(note2, unsafe_allow_html = True)
@@ -498,4 +499,9 @@ st.sidebar.info(
     	here.
      ''')
 
+
+st.sidebar.image('bot3.png' , use_column_width=True)
+if st.sidebar.button("Ask COBot (COVID-19 Bot) to Help"):
+	wb.open("index.html")
 #---------------END OF SIDE BAR-------------------------------------------------------------------
+
