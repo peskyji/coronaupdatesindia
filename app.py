@@ -214,8 +214,8 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 	#----------------------World Analysis-----------------------------------------------------
 	if selection == 'WORLD':
 		st.title("COVID-19 Global Dashboard")
-		confirm = data_global.cases.sum()
-		death = data_global.deaths.sum()
+		confirm = int(data_global.cases.sum())
+		death = int(data_global.deaths.sum())
 
 		div_box = ''' <br>
 					<div class='outer'>
@@ -309,10 +309,10 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 	#-----------------------India Analysis-----------------------------------------------------
 	else:
 		st.title("COVID-19 India Dashboard")
-		confirm = allStatesData.Confirmed.sum()
-		death = allStatesData.Deceased.sum()
-		active = allStatesData.Active.sum()
-		recover = allStatesData.Recovered.sum()
+		confirm = int(allStatesData.Confirmed.sum())
+		death = int(allStatesData.Deceased.sum())
+		active = int(allStatesData.Active.sum())
+		recover = int(allStatesData.Recovered.sum())
 
 		div_box = ''' <br>
 					<div class='outer'>
@@ -500,8 +500,8 @@ st.sidebar.info(
      ''')
 
 
-st.sidebar.image('bot3.png' , use_column_width=True)
-if st.sidebar.button("Ask COBot (COVID-19 Bot) to Help"):
-	wb.open("index.html")
+# st.sidebar.image('bot3.png' , use_column_width=True)
+# if st.sidebar.button("Ask COBot (COVID-19 Bot) to Help"):
+# 	wb.open("index.html")
 #---------------END OF SIDE BAR-------------------------------------------------------------------
 
