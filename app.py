@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st 
 import plotly.graph_objs as gobj
 import calendar
-import webbrowser as wb
+import requests
 
 @st.cache(persist=True)
 def load_data_global():
@@ -22,9 +22,17 @@ def load_data_global():
 
 @st.cache(persist=True)
 def load_data_india():
-	URL = "https://www.mygov.in/covid-19"
-	df = pd.read_html(URL)
-	df = df[0].rename(columns = {'State/UTs': 'States'})
+	url = 'https://covidindia.org/'
+	header = {
+	  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",
+	  "X-Requested-With": "XMLHttpRequest"
+	}
+	r = requests.get(url, headers=header)
+	df = pd.read_html(r.text)
+	df = pd.DataFrame(df[0])
+	df = df.rename(columns = {'State':'States','Confirmed Cases':'Confirmed' , 'Recoveries':'Recovered' , 'Deaths':'Deceased'})
+	df['Active'] = df.Confirmed - (df.Recovered + df.Deceased)
+	df = df.drop(index = [len(df)-1,len(df)-2])
 	return df
 
 def plotBarFunc(df):
@@ -308,6 +316,7 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 	
 	#-----------------------India Analysis-----------------------------------------------------
 	else:
+		
 		st.title("COVID-19 India Dashboard")
 		confirm = int(allStatesData.Confirmed.sum())
 		death = int(allStatesData.Deceased.sum())
@@ -454,6 +463,8 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 						st.markdown("Sorry, At Present None of the States/UT's are unaffected.")
 
 		
+
+
 note1 = '''<h2 class="note">NOTE <span style="font-size: 1.5em;">ℹ</span></h2> '''
 st.sidebar.markdown(note1, unsafe_allow_html = True)
 st.sidebar.info(
@@ -484,7 +495,7 @@ st.sidebar.info(
     	#### WORLD
     	- [ECDC](https://opendata.ecdc.europa.eu/covid19/casedistribution)
     	#### INDIA
-    	- [GOVT SITE](https://www.mygov.in/covid-19)
+    	- [COVIDINDIA.ORG](https://covidindia.org/)
      ''')
 
 note4 = '''<h2> CONTRIBUTE </h2> '''
