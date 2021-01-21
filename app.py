@@ -16,6 +16,9 @@ def load_data_global():
 	URL = "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv"
 	df = pd.read_csv(URL)
 	df['dateRep'] = pd.to_datetime(df['dateRep'] , format = "%d/%m/%Y")
+	df = df.rename(columns = {'cases_weekly':'cases', 'deaths_weekly':'deaths'})
+	df['year'] = pd.DatetimeIndex(df['dateRep']).year
+	df['month'] = pd.DatetimeIndex(df['dateRep']).month
 	filt1 = df.continentExp == 'Other'
 	df = df.drop(index = df[filt1].index)
 	return df
@@ -349,15 +352,15 @@ with st.spinner(f"{selection} ANALYSIS ..."):
 		ind_grp = country_grp.get_group("India")
 		st.title("COVID-19 Outbreak in India")
 		st.sidebar.markdown("## CATEGORIES")
-		choice = st.sidebar.radio("",("Daywise Analysis","Monthwise Analysis","State/UT-Wise"), key="wise")
+		choice = st.sidebar.radio("",("Weekly Analysis","Monthwise Analysis","State/UT-Wise"), key="wise")
 
-		if choice == "Daywise Analysis":
+		if choice == "Weekly Analysis":
 			status3 = st.radio("See the count of",("Confirmed Cases","No. of Deaths"),key='Daywise')
 			
-			case_or_death, name, title = ind_grp['deaths'], 'deaths per day', 'COVID-19 Daywise deaths'
+			case_or_death, name, title = ind_grp['deaths'], 'deaths per week', 'COVID-19 Daywise deaths'
 			
 			if status3 == "Confirmed Cases":
-				case_or_death, name, title = ind_grp['cases'], 'new cases per day', 'COVID-19 Daywise Confirmed Cases'
+				case_or_death, name, title = ind_grp['cases'], 'new cases per week', 'COVID-19 Daywise Confirmed Cases'
 
 			fig = go.Figure(go.Scatter(x = ind_grp['dateRep'], y = case_or_death,name=name))
 
